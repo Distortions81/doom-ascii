@@ -95,8 +95,8 @@ int clock_gettime(int p, struct timespec *spec)
 		*(buf_)++ = '0' + (byte_) % 10u;       \
 	} while (0)
 
-const char grad[] = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
-#define GRAD_LEN 70u
+const char grad[] = " .-+1x@";
+#define GRAD_LEN 8u
 #define INPUT_BUFFER_LEN 16u
 #define EVENT_BUFFER_LEN (INPUT_BUFFER_LEN * 2u - 1u)
 
@@ -144,6 +144,109 @@ void DG_Init()
 	memset(input_buffer, '\0', INPUT_BUFFER_LEN);
 }
 
+float getHue(int r, int g, int b)
+{
+	float hue;
+
+	// Convert RGB to normalized values
+	float R = (float)r / 255;
+	float G = (float)g / 255;
+	float B = (float)b / 255;
+
+	float max = R > G ? (R > B ? R : B) : (G > B ? G : B);
+	float min = R < G ? (R < B ? R : B) : (G < B ? G : B);
+
+	float delta = max - min;
+
+	// Calculate hue
+	if (delta == 0) {
+		hue = 0;
+	} else if (max == R) {
+		hue = 60 * ((G - B) / delta);
+	} else if (max == G) {
+		hue = 60 * ((B - R) / delta + 2);
+	} else {
+		hue = 60 * ((R - G) / delta + 4);
+	}
+
+	// Make sure hue is in the range [0, 360)
+	hue = hue < 0 ? hue + 360 : hue;
+
+	return hue;
+}
+
+float getBrightness(int r, int g, int b)
+{
+	// Convert RGB to normalized values
+	float R = (float)r / 255;
+	float G = (float)g / 255;
+	float B = (float)b / 255;
+
+	// Calculate maximum value among R, G, and B
+	float max = R > G ? (R > B ? R : B) : (G > B ? G : B);
+
+	return max;
+}
+
+float getSaturation(int r, int g, int b)
+{
+	// Convert RGB to normalized values
+	float R = (float)r / 255;
+	float G = (float)g / 255;
+	float B = (float)b / 255;
+
+	float max = R > G ? (R > B ? R : B) : (G > B ? G : B);
+	float min = R < G ? (R < B ? R : B) : (G < B ? G : B);
+
+	float delta = max - min;
+
+	// Calculate saturation
+	if (max == 0) {
+		return 0;
+	} else {
+		return delta / max;
+	}
+}
+
+char *rgb_to_color(float hue, float sat, float val)
+{
+	if (val > 0.3) {
+		if (sat < 0.5) {
+			return "1;37";
+		}
+		if (hue >= 330 || hue < 30) {
+			return "1;31"; // red
+		} else if (hue >= 30 && hue < 90) {
+			return "1;33"; //yellow
+		} else if (hue >= 90 && hue < 150) {
+			return "1;32"; //green
+		} else if (hue >= 150 && hue < 210) {
+			return "1;36"; //cyan
+		} else if (hue >= 210 && hue < 270) {
+			return "1;34"; //blue
+		} else if (hue >= 270 && hue < 330) {
+			return "1;35"; //magenta
+		}
+	} else {
+		if (sat < 0.5) {
+			return "0;37";
+		}
+		if (hue >= 330 || hue < 30) {
+			return "0;31"; // red
+		} else if (hue >= 30 && hue < 90) {
+			return "0;33"; //yellow
+		} else if (hue >= 90 && hue < 150) {
+			return "0;32"; //green
+		} else if (hue >= 150 && hue < 210) {
+			return "0;36"; //cyan
+		} else if (hue >= 210 && hue < 270) {
+			return "0;34"; //blue
+		} else if (hue >= 270 && hue < 330) {
+			return "0;35"; //magenta
+		}
+	}
+}
+
 void DG_DrawFrame()
 {
 	/* Clear screen if first frame */
@@ -158,22 +261,21 @@ void DG_DrawFrame()
 	unsigned row, col;
 	struct color_t *pixel = (struct color_t *)DG_ScreenBuffer;
 	char *buf = output_buffer;
+	char buff[3];
 
 	for (row = 0; row < DOOMGENERIC_RESY; row++) {
 		for (col = 0; col < DOOMGENERIC_RESX; col++) {
 			if ((color ^ *(uint32_t *)pixel) & 0x00FFFFFF) {
 				*buf++ = '\033';
 				*buf++ = '[';
-				*buf++ = '3';
-				*buf++ = '8';
-				*buf++ = ';';
-				*buf++ = '2';
-				*buf++ = ';';
-				BYTE_TO_TEXT(buf, pixel->r);
-				*buf++ = ';';
-				BYTE_TO_TEXT(buf, pixel->g);
-				*buf++ = ';';
-				BYTE_TO_TEXT(buf, pixel->b);
+				float hue = getHue(pixel->r, pixel->g, pixel->b);
+				float sat = getSaturation(pixel->r, pixel->g, pixel->b);
+				float val = getBrightness(pixel->r, pixel->g, pixel->b);
+				char *acc = rgb_to_color(hue, sat, val);
+				*buf++ = acc[0];
+				*buf++ = acc[1];
+				*buf++ = acc[2];
+				*buf++ = acc[3];
 				*buf++ = 'm';
 				color = *(uint32_t *)pixel;
 			}
