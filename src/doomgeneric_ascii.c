@@ -95,8 +95,8 @@ int clock_gettime(int p, struct timespec *spec)
 		*(buf_)++ = '0' + (byte_) % 10u;       \
 	} while (0)
 
-const char grad[] = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
-#define GRAD_LEN 70u
+const char grad[] = " ";
+#define GRAD_LEN 1u
 #define INPUT_BUFFER_LEN 16u
 #define EVENT_BUFFER_LEN (INPUT_BUFFER_LEN * 2u - 1u)
 
@@ -159,6 +159,10 @@ void DG_DrawFrame()
 	struct color_t *pixel = (struct color_t *)DG_ScreenBuffer;
 	char *buf = output_buffer;
 
+	*buf++ = '\033';
+	*buf++ = '[';
+	*buf++ = '7';
+	*buf++ = 'm';
 	for (row = 0; row < DOOMGENERIC_RESY; row++) {
 		for (col = 0; col < DOOMGENERIC_RESX; col++) {
 			if ((color ^ *(uint32_t *)pixel) & 0x00FFFFFF) {
